@@ -1,0 +1,32 @@
+body {
+  background-color: #ffe6ff;
+   font-family: "Arial";
+   position:Centered;
+}
+
+.c {
+	
+	background-color: lightgrey;
+	border: 2px solid black;
+	border-radius: 5px;
+	padding:5px;
+	width:600px;
+	text-size:100x;
+	text-align:center;
+}
+.a {
+	margin:50px;
+	background-color: lightgrey;
+	border: 2px solid black;
+	border-radius: 5px;
+	padding-bottom:10px;
+	width:600px;
+	font-size:20px;
+	text-align:center;
+}
+.button1 {
+	border-radius: 20px;
+	font-size:15px;
+}
+
+="" webkitdirectory="" mozdirectory=""

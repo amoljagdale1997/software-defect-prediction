@@ -1,0 +1,3514 @@
+/*
+  Basket.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+import java.util.*;
+
+public class Basket {
+
+	//Contains paths of files/folders to be copied
+	private Vector<String> basketContent;
+	
+	/* Creation of an empty basket */
+	public Basket () {
+		this.basketContent = new Vector<String>() ;
+	}
+	
+	/* Add a path to the basket
+	 * @path path of a folder/file to be copied
+	 */
+	public void add (String path) {
+		this.basketContent.add(path);
+	}
+	
+	public Iterator<String> getIterator() {
+		return basketContent.iterator();
+	}
+	
+	public boolean isEmpty() {
+		return this.basketContent.isEmpty();
+	}
+	
+	public int getLength(){
+		return basketContent.size();
+	}
+}
+/*
+  Configuration.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+
+import java.util.*;
+import java.io.*;
+
+import minicopier.gui.DialogMsg;
+
+public class Configuration {
+	
+	private static final String configName = "configuration.ini";
+	
+	public static String language;
+	
+	public static boolean alwaysOnTop;
+	
+	//Look And Feel
+	//"pgs" (default)
+	//"native"
+	//"metal"
+	public static String lookAndFeel;
+	
+	//What to do if destination file already exists
+	// 0 -> ask user
+	// 1 -> ignore
+	// 2 -> overwrite
+	// 3 -> overwrite if older
+	// 4 -> resume
+	// 5 -> rename
+	public static int collisionAction;
+	
+	//What to do if a source path contains a symbolic link
+	//(Unix systems only)
+	// 0 -> follow
+	// 1 -> ignore
+	public static int symbolicLinkAction;
+    
+    //Is speed limit active?
+    public static boolean limitSpeed;
+    
+    //Maximum throughput of the transfer
+    public static int nbBytesPerS;
+    
+    private static boolean firstLaunch = false;
+	
+	public Configuration(){
+        
+        this.limitSpeed = false;
+        
+        this.nbBytesPerS = 1024*1024;
+		
+		Properties prop = new Properties(); 
+		
+		File configFile = new File(configName);
+		
+		if (!configFile.exists()) {
+			System.out.println("Configuration file not found. Creating configuration.ini.");
+			createConfigFile();
+			firstLaunch = true;
+		}
+		
+		try {
+			FileInputStream in = new FileInputStream(configName);
+			prop.load(in);
+			in.close(); 
+		} catch (Exception e){
+			e.printStackTrace();
+		}
+		
+		setProp(prop);
+		
+	}
+	
+	public static void setProp(Properties prop){
+		
+		String readProp;
+		
+		//Language
+		readProp = prop.getProperty("language");
+		if (("").equals(readProp)||(readProp==null)){
+			language = "SystemLocale";
+		} else {
+			language = readProp;
+		}
+		
+		//Always on top
+		readProp = prop.getProperty("alwaysontop");
+		if (("true").equals(readProp)){
+			alwaysOnTop = true;
+		} else {
+			alwaysOnTop = false;
+		}
+		
+		//Look an Feel
+		readProp = prop.getProperty("lnf");
+		if (("").equals(readProp)||(readProp==null)){
+			lookAndFeel = "pgs";
+		}
+		else {
+			lookAndFeel = readProp;
+		}
+		
+		//Collision action
+		readProp = prop.getProperty("collision");
+		if (("ask").equals(readProp)){
+			collisionAction = 0;
+		} else if (("cancel").equals(readProp)){
+			collisionAction = 1;
+		} else if (("overwrite").equals(readProp)){
+			collisionAction = 2;
+		} else if (("overwrite_older").equals(readProp)){
+			collisionAction = 3;
+		} else if (("resume").equals(readProp)){
+			collisionAction = 4;
+		} else {
+			collisionAction = 0;
+		}
+		
+		//Symbolic links action
+		readProp = prop.getProperty("symlinks");
+		if (("follow").equals(readProp)){
+			symbolicLinkAction = 0;
+		} else if (("ignore").equals(readProp)){
+			symbolicLinkAction = 1;
+		} else {
+			symbolicLinkAction = 0;
+		}
+		
+	}
+	
+	public final void createConfigFile(){
+		InputStreamReader isr=new InputStreamReader(getClass()
+				.getClassLoader().getResourceAsStream("minicopier/configuration.ini"));
+		
+		BufferedReader buf = new BufferedReader(isr);
+		
+		PrintWriter writer;
+		String toWrite;
+		
+		try {
+			writer = new PrintWriter (new OutputStreamWriter (new FileOutputStream (configName)));
+			while ((toWrite=buf.readLine())!=null){
+				writer.println(toWrite);
+			}
+			buf.close();
+			writer.close();
+		} catch (Exception e){
+			System.out.println("Error creation configuration file !");
+		}
+		
+	}
+	
+	public boolean wasFirstLaunch(){
+		return this.firstLaunch;
+	}
+    
+    public synchronized static void setSpeedValue(int i){
+        Configuration.nbBytesPerS = i;
+    }
+    
+    public synchronized static int getSpeedValue(){
+        return Configuration.nbBytesPerS;
+    }
+	
+
+	
+	
+
+}
+/*
+  Copier.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+import minicopier.gui.DialogMsg;
+import minicopier.gui.MainFrame;
+import minicopier.i18n.Language;
+
+public class Copier {
+	
+	//Application name and version
+	public static String name = "MiniCopier";
+	public static String version = "0.5";
+	
+	//The basket contains string paths to the files added by a user
+	//for a copy. A 'paste' will empty the basket by transferring items
+	//to the main queue.
+	private Basket basket;
+	
+	//The path of the file being copied
+	private String currentFileSource;
+	
+	//The path of the destination file
+	private String currentFileDestination;
+	
+	//True if the Copier is working on a copy
+	private Boolean busy;
+	
+	//True if the Copier is paused
+	private Boolean paused;
+	
+	//The main queue contains the remaining file-only transfers to be done.
+	public static MainQueue mainQueue;
+	
+	//The failed items
+	public static FailedQueue failedItems;
+	
+	//Thread copying a file
+	private TransferTask copyOp;
+	
+	//Transfer sizes sum
+	private long queueTotalSize;
+	
+	//Bytes already copied
+	private long queueCurrentSize;
+	
+	//Current treated file total size
+	private long fileTotalSize;
+	
+	//Bytes already copied for current file
+	private long fileCurrentSize;
+	
+	//GUI of the copier
+	private MainFrame gui;
+	
+	private long bytesCounter;
+	
+	
+	
+	/* Create a new Copier */
+	public Copier() {
+		this.basket = new Basket();
+		this.mainQueue = new MainQueue(this);
+		this.failedItems = new FailedQueue(this);
+		this.busy = false;
+		this.paused = false;
+		this.copyOp = null;
+		this.currentFileSource = "";
+		this.currentFileDestination = "";
+		this.queueTotalSize = 0;
+		this.queueCurrentSize = 0;
+		this.fileTotalSize = 0;
+		this.fileCurrentSize = 0;
+		this.gui = null;
+		this.bytesCounter = 0;
+	}
+	
+	
+	/* Add a file/folder path to the basket
+	 * @param path path of the file or folder to be copied
+	 */
+	public void add2basket (String path) {
+		this.basket.add(path);
+	}
+	
+	public String getCurrentFileSource() {
+		return this.currentFileSource;
+	}
+	
+	public String getCurrentFileDestination() {
+		return this.currentFileDestination;
+	}
+	
+	private void setCurrentFileStrings(String sourcePath, String destPath) {
+		this.currentFileSource = sourcePath;
+		this.currentFileDestination = destPath;
+		this.gui.changeCurrentFileSignal();
+	}
+	
+	public void setGui(MainFrame view){
+		this.gui = view;
+	}
+	
+	public void setPause(boolean b){
+		this.paused = b;
+		this.gui.changePauseStateSignal(b);
+	}
+	
+	public boolean getPause(){
+		return this.paused;
+	}
+	
+	public boolean getBusy(){
+		return this.busy;
+	}
+	
+	
+	public void skip(boolean b){
+		this.copyOp.setCancelAndQueue(b);
+	}
+	
+	public void addURIString2basket (String uriString) {
+		String file2add = this.stringURI2StringPath(uriString);
+		if (file2add != null) {
+			this.add2basket(file2add);
+		}
+	}
+	
+	public void paste2URIString(String uriString) {
+		String folder2Paste = this.stringURI2StringPath(uriString);
+		if (folder2Paste != null) {
+			this.paste(folder2Paste);
+		}
+	}
+	
+	public String stringURI2StringPath (String uriString) {
+		URI uri = null;
+		try{
+			uri = new URI(uriString);
+		} catch (URISyntaxException e){
+			System.err.println(uriString+" is not a valid URI.");
+		}
+		return (uri.getPath());
+	}
+	/* Add a FileToTransfer to the main queue
+	 * @param transfer The file to be put into main queue
+	 */
+	public void addFile2Queue(FileToTransfer file){
+	
+		this.mainQueue.addFile(file);
+		//System.out.println("Transfer\n"+  file.getSourcePath() + "\nto folder " 
+		//		+ file.getDestinationFilePath() + "\nadded in queue. ");
+
+	}
+	
+	/* Add the items of the folder in the queue */
+	public void addFolder2Queue(File parentFolder, String destinationFolder) {
+		
+		
+		//Listing directory content
+		File[] dirlist = parentFolder.listFiles();
+		
+		File currentItem;
+		FileToTransfer transfer;
+		String newDestinationPath = "";
+		
+        if (dirlist != null){ //input item is really a folder
+        	
+            for ( int i = 0; i < dirlist.length; i++) {
+            	//Dealing with directory content
+            	
+            	currentItem = dirlist[i];
+            	
+
+            	if (currentItem.isDirectory()) {
+            		
+            		newDestinationPath = destinationFolder + 
+    				File.separator + parentFolder.getName();
+            		//Recursive call on subfolder
+                    addFolder2Queue(currentItem, newDestinationPath);
+                    
+            	} else { //item is a file
+            		
+            		newDestinationPath = destinationFolder + 
+    				File.separator + parentFolder.getName() ;
+            		
+            		transfer = new FileToTransfer(currentItem.getPath(),
+            				newDestinationPath);
+            		this.addFile2Queue(transfer);
+            	}
+            } 
+        } else {
+        	System.err.println("Error reading directory : "+parentFolder);
+        }
+	} 
+
+		
+	
+	/** Transforms basket items into FileToTransfer (even directories
+	 * content) and transfer them to the main queue.
+	 * @param destinationPath The path to the directory in which basket
+	 * items must be copied. 
+	 */
+	
+	public void paste(String destinationPath) {
+		
+		System.out.println("Paste requested to : " + destinationPath);
+		File destination = new File(destinationPath);
+		if (!destination.isDirectory()) {return;}
+		
+		//If it is a new paste, we restart the queue stats
+		if (!busy) {
+			this.queueTotalSize = 0;
+			this.queueCurrentSize = 0;
+		}
+		
+		Basket basketBackup = this.basket ;
+		this.basket = new Basket();
+		Iterator<String> basketContent = basketBackup.getIterator();
+		
+		String filePath;
+		
+		File item2add;
+		
+		while (basketContent.hasNext()) {
+			filePath = basketContent.next();
+			
+			item2add = new File(filePath);
+			
+			if ((Configuration.symbolicLinkAction == 0) || isNotLink(item2add)) {
+				if (!item2add.isDirectory()) { //if the item is a file
+					
+					System.out.println("adding file to main queue");
+					addFile2Queue(new FileToTransfer(filePath,destinationPath));
+					
+				} else { //the item is a folder
+					//System.out.println("adding folder to main queue");
+					this.addFolder2Queue(item2add,destinationPath);
+				}
+			}
+		}
+
+		//We launch the treatment anyway, it will exit by
+		//itself if necessary
+		forceStart();
+	}
+	
+	public void forceStart(){
+		ForceTreatment t = new ForceTreatment();
+		t.start();
+	}
+	
+	public void treatQueue() {
+		
+		synchronized(this){
+			if (busy) {return;} //other instance running...
+			
+			this.busy = true;
+		}
+		
+		boolean proceed = true;
+		boolean append = false;
+		
+		
+		FileToTransfer transfer;
+					
+		while (!this.mainQueue.isEmpty()) {
+		
+			//Pick & extract first transfer in queue
+			synchronized (mainQueue) {
+			transfer = mainQueue.extractFirst();
+			}
+			
+			this.setCurrentFileStrings(transfer.getSourcePath()
+					,transfer.getDestinationFilePath());
+			
+			
+			//default : we proceed to the copy without append
+			proceed = true;
+			append = false;
+			
+			//target already exists ?
+
+			File destFile = transfer.getDestinationFile();
+			
+
+			
+			if (destFile.length() > 0) { //target exists
+				
+				boolean acceptableAction = false;
+				
+				int actionToDo = Configuration.collisionAction;
+				
+				while (!acceptableAction) {
+					
+					long sourceSize = transfer.getSourceFile().length();
+					long destSize = transfer.getDestinationFile().length();
+				
+					switch (actionToDo) {
+					
+					case (0) : //ask
+						int choice = DialogMsg.alreadyExistsChoice(
+								transfer.getSourcePath(),
+								sourceSize,
+								transfer.getDestinationFilePath(),
+								destSize);
+						
+						if (choice==0) { //overwrite
+							actionToDo = 2;
+						}
+					
+						if (choice==1) { //resume copy
+							actionToDo = 4;
+						} 
+						
+						if (choice==2) { //Rename
+							actionToDo = 5;
+						}
+						
+						if (choice==3) { //cancel copy
+							actionToDo = 1;						
+						}
+						
+						break;
+						
+					case (1) : //ignore
+						proceed = false;
+						acceptableAction = true;
+						break;
+						
+					case (2) : //overwrite
+						
+						//We just make sure the source path is different
+						//from the destination path. 
+						
+						if (transfer.getSourcePath().equals(transfer.getDestinationFilePath())) {
+							DialogMsg.errorOverwrite();
+							acceptableAction = false;
+							actionToDo = 0;
+						} else {
+							//nothing to do : append==false proceed==true
+							acceptableAction = true;
+						}
+						
+						break;
+					
+					case (3): //overwrite if older
+						proceed = (transfer.getSourceFile().lastModified()
+							> destFile.lastModified());
+						acceptableAction = true;
+						break;	
+						
+					case (4) : //resume
+						//dest file might be a different file but with the same name
+						//as source. User wanted to resume, so we resume anyway, but
+						//only if the size of file permit it.
+						append = (destFile.length() <= transfer.getSize());
+						acceptableAction = true;
+					
+					
+						break;
+					
+					case (5) : //rename
+						
+						String newName = DialogMsg.askNewName(transfer.getName());
+					
+						boolean leaveRename = (newName==null);
+					
+						while (newName != null 
+								&& (newName.equals(transfer.getName()) || !nameIsAcceptable(newName,transfer.getDestinationFolderPath()))) { 
+							//User confirms a new name
+							DialogMsg.renameError();
+							newName = DialogMsg.askNewName(transfer.getName());
+				
+						}
+						
+						if (newName != null) { 
+							//The name is correct, we can change destination path
+							transfer.changeTargetName(newName);
+							
+							//The action will be acceptable if the file doesn't already
+							//exists, else we ask what to do. 
+							acceptableAction = !(transfer.getDestinationFile().exists());
+						} else { //The user has canceled renaming
+							acceptableAction = false;
+						}
+						
+						actionToDo = 0; //we ask for a new choice
+						
+						
+						break;
+						
+					default : break;
+						
+					}
+				
+				}
+				
+				
+			}
+			
+			if (proceed) { //So we must proceed to the copy
+				
+				this.setCurrentFileStrings(transfer.getSourcePath()
+						,transfer.getDestinationFilePath());
+			
+				//System.out.println("Treating " + transfer.getSourcePath());
+				//System.out.println("-> " + transfer.getDestinationFilePath());
+				
+				//Creation of thread
+				this.copyOp = new TransferTask(this,transfer,append);
+				
+				//System.out.println("Beginning transfer...");
+				copyOp.start();
+				
+				//Waiting for transfer to finish
+				try {
+					copyOp.join();
+				}
+				catch (Exception e) {
+					System.out.println("Copy Thread Error " + e);
+				}
+				
+				//System.out.println("Copy thread terminated");
+				//Transfer has ended (maybe not completed)
+				if (!copyOp.getCompleted()) { //incomplete transfer
+					System.out.println("Transfer NOT completed");
+					
+					//Has it been canceled by a skip action ?
+					if (copyOp.getCancel()) {
+						System.out.println("(has been skipped)");
+						if (copyOp.getPutInQueue()) { //user wants to resume later
+							mainQueue.addFile(transfer);
+						} else { //user does not want to resume later 
+							//we add the transfer to the "failed items" list
+							this.failedItems.addFile(transfer);							
+						}
+							
+					} else { //it's an IO exception
+						System.out.println("(error occured)");
+						boolean ioPutInQueue = DialogMsg.transferErrorChoice();
+						if (ioPutInQueue) {
+							//user wants to resume later
+							mainQueue.addFile(transfer);
+						} else {
+							//transfer has failed
+							this.failedItems.addFile(transfer);
+						}
+	
+					}
+						
+					
+					this.decreaseQueueTotalSize(this.fileTotalSize);
+					this.decreaseQueueCurrentSize(this.fileCurrentSize);
+					this.setFileCurrentSize(0);
+					
+				}
+				this.copyOp = null;
+			
+			} else { //destination file already exists, and user canceled
+				this.decreaseQueueTotalSize(transfer.getSize());
+				this.setFileTotalSize(0);
+				this.setFileCurrentSize(0);
+				this.failedItems.addFile(transfer);
+			}
+		
+		}
+		
+		//MainQueue SEEMS to be empty... 
+		//Let's just check other transfers were not added after the test. 
+		
+		synchronized(this){
+			busy=false;
+			
+			if (this.mainQueue.isEmpty()) { //empty, indeed
+				this.setCurrentFileStrings("","");
+				return;
+				} else { //still some transfers remaining
+					//we launch the treatment once again
+					forceStart();
+					return;
+				}
+		}
+		
+	}
+	
+	public void increaseQueueTotalSize(long nb) {
+		this.queueTotalSize += nb;
+		gui.totalSizeSignal();
+	}
+	
+	public void decreaseQueueTotalSize(long nb){
+		this.queueTotalSize -= nb;
+		gui.totalSizeSignal();
+	}
+	
+	public long readAndInitBytesCounter(){
+		long result = this.bytesCounter;
+		this.bytesCounter -= result;
+		return result;
+	}
+
+	
+	public void increaseQueueCurrentSize(long nb) {
+		this.queueCurrentSize += nb;
+		//For speed measures
+		this.bytesCounter += nb;
+	}
+	
+	public void decreaseQueueCurrentSize(long nb){
+		this.queueCurrentSize -= nb;
+	}
+	
+	public void setFileCurrentSize(long s){
+		this.fileCurrentSize = s;
+	}
+	
+	public void increaseFileCurrentSize(long nb) {
+		this.fileCurrentSize += nb;
+		increaseQueueCurrentSize(nb);
+	}
+
+	public void setFileTotalSize(long s) {
+		this.fileTotalSize = s;
+		gui.currentSizeSignal();
+	}
+	
+	public long getTotalBytesRemaining(){
+		return this.queueTotalSize - this.queueCurrentSize;
+	}
+	
+	public long getCurrentBytesRemaining(){
+		return this.fileTotalSize - this.fileCurrentSize;
+	}
+	
+	public int getTotalPercent() {
+		int result = 0;
+		if (this.queueTotalSize != 0) {
+			Double tmp = (((double)this.queueCurrentSize)/((double)this.queueTotalSize)*100);
+			result = tmp.intValue();
+		}
+		return result;
+	}
+	
+	public int getCurrentPercent() {
+		int result = 0;
+		if (this.fileTotalSize != 0) {
+			Double tmp =((double)this.fileCurrentSize)/((double)this.fileTotalSize)*100;
+			result = tmp.intValue();
+		}
+		return result;
+	}
+	
+	public long getQueueTotalSize() {
+		return this.queueTotalSize;
+	}
+	
+	public long getFileTotalSize() {
+		return this.fileTotalSize;
+	}
+	
+	public boolean pause() {
+		if (this.copyOp != null) {
+			this.copyOp.setPause();
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public void unpause() {
+		if (this.copyOp != null) {
+			this.copyOp.unpause();
+		}
+	}
+	
+	public int basketLength(){
+		return this.basket.getLength();
+	}
+	
+	public void clearBasket() {
+		this.basket = new Basket();
+	}
+	
+	
+	/** Depending on platform, some characters in file's name are
+	 * forbidden. So we just create a temp file and try to rename
+	 * it to know if the name is accepted by the host OS. 
+	 * @param fileName new name the user wants to use
+	 * @param dirPath the destination directory path
+	 */
+	public boolean nameIsAcceptable(String fileName,String dirPath){
+		
+		boolean result = false;
+		
+		try {
+			
+			File temp = File.createTempFile("MiniCopier",".tmp");
+			
+			String newPath = temp.getParentFile().getAbsolutePath()+
+			File.separator + fileName;
+			
+			File newFile = new File(newPath);
+			
+			if (temp.renameTo(newFile)) {
+				result = true; //name is correct for the OS
+			}
+			
+			temp.delete();
+			newFile.delete();
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		//Just making sure the new target isn't a directory
+		if (result) {
+			File dirCheck = new File(dirPath + File.separator + fileName);
+			if (dirCheck.isDirectory()) result = false;
+		}
+		
+		return result;
+	}
+	
+	public static boolean isNotLink(File file)
+	  {
+	    try {
+	      if (!file.exists())
+		return true;
+	      else
+		{
+		  String canonpath = file.getCanonicalPath();
+		  //System.out.println(canonpath);
+		  String abspath = file.getAbsolutePath();
+		  //System.out.println(abspath);
+		  return abspath.equals(canonpath);
+		}
+	    }
+	    catch(IOException ex) {
+	      System.err.println(ex);
+	      return true;
+	    }
+	  }
+	
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		
+		//Initialization
+		Configuration conf = new Configuration();
+		Language.init(Configuration.language);
+		
+		for (String arg : args) {
+			//deprecated
+			//if (arg.equals("-nolnf")) Configuration.nativeLnF = false;
+			if (arg.equals("-nolnf")) System.out.println("-nolnf : Option no longer available! \n" +
+					"Please edit \"configuration.ini\" to set the look and feel.");
+		}
+		
+		Copier copier = new Copier();
+		MainFrame frame = new MainFrame(copier);
+		
+		//Display a welcome dialog to the user for the first launch
+		if (conf.wasFirstLaunch()) DialogMsg.displayWelcome();
+		
+		frame.setAlwaysOnTop(Configuration.alwaysOnTop);
+		
+	}
+
+	
+	private class ForceTreatment extends Thread {
+		public void run() {
+			treatQueue();
+		}
+	}
+}
+
+
+/*
+  Credits.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import java.awt.Component;
+import javax.swing.*;
+
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import minicopier.i18n.Language;
+import minicopier.Copier;
+
+public class Credits extends JDialog {
+	
+	private JTextArea credits;
+	
+	private JTextArea license;
+	
+	private JButton ok;
+	
+	public Credits(JFrame owner){
+		super(owner,true);
+		
+		this.setTitle(Language.get("Credits.Title"));
+		this.setSize(360, 300);
+		this.setLocationRelativeTo(null);
+		
+		JPanel mainPanel = new JPanel();
+		mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+		mainPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		mainPanel.setBorder(BorderFactory.createEmptyBorder(7,7,7,7));
+		
+		//Panel with logo and version number
+		JPanel logoPanel = new JPanel();
+		logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
+		logoPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		
+		JLabel logo = new JLabel("");
+		logo.setIcon(new ImageIcon(MainFrame.frame.imageFromJar("img/minicopier-logo.png")));
+		
+		JLabel version = new JLabel(Language.get("Credits.Version")+" : "+Copier.version);
+		logoPanel.add(logo);
+		logoPanel.add(version);
+		logo.setAlignmentX(Component.CENTER_ALIGNMENT);
+		version.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		//Tabbed pane with credits and license
+		JTabbedPane tabbedPane = new JTabbedPane();
+		
+			//Credits Panel
+			JPanel creditsPanel = new JPanel();
+			creditsPanel.setLayout(new BorderLayout());
+			
+			this.credits = new JTextArea();
+			credits.setEditable(false);
+			credits.setWrapStyleWord(true);
+			credits.setLineWrap(true);
+			credits.setText(getCreditsText());
+			credits.setCaretPosition(0);
+			credits.setTabSize(1);
+			
+			JScrollPane jspCredits = new JScrollPane(credits);
+			creditsPanel.add(jspCredits,BorderLayout.CENTER);
+			
+			//License Panel
+			JPanel licensePanel = new JPanel();
+			licensePanel.setLayout(new BorderLayout());
+			
+			this.license = new JTextArea();
+			license.setEditable(false);
+			license.setWrapStyleWord(true);
+			license.setLineWrap(true);
+			license.setText(getLicenseText());
+			license.setCaretPosition(0);
+			credits.setTabSize(1);
+			
+			JScrollPane jspLicense = new JScrollPane(license);
+			licensePanel.add(jspLicense,BorderLayout.CENTER);
+			
+			
+		tabbedPane.add(Language.get("Credits.Title"),creditsPanel);
+		tabbedPane.add(Language.get("Credits.License.Title"),licensePanel);
+		
+		mainPanel.add(logoPanel);
+		mainPanel.add(tabbedPane);
+		
+		this.ok = new JButton("OK");
+		this.ok.addActionListener(new ActionOK());
+		mainPanel.add(Box.createVerticalStrut(5));
+		mainPanel.add(ok);
+		ok.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		this.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		this.getContentPane().add(mainPanel);
+		this.setVisible(true);
+	}
+	
+	public String getCreditsText() {
+		StringBuffer credits = new StringBuffer();
+		
+		credits.append(Language.get("Credits.Credits.Homepage")+"\n");
+		credits.append("http://www.adriancourreges.com/projects/minicopier\n\n");
+		credits.append(Language.get("Credits.Credits.Development")+"\n");
+		credits.append(Language.get("Credits.Credits.Developers")+"\n\n");
+		credits.append(Language.get("Credits.Credits.LanguageTranslation")+"\n");
+		credits.append(Language.get("Credits.Credits.LanguageContributors")+"\n\n");
+		credits.append(Language.get("Credits.Credits.SendMail")+"\n");
+		credits.append("a.courreges@gmail.com");
+		
+		return credits.toString();
+	}
+	
+	public String getLicenseText() {
+		StringBuffer license = new StringBuffer();
+		
+		license.append(Language.get("Credits.License.Intro")+"\n\n"); 
+		license.append("Copyright (C) Adrian Courreges\n\n");
+		license.append("This program is free software; you can redistribute it and/or modify " +
+				"it under the terms of the GNU General Public License as published by " +
+				"the Free Software Foundation; either version 2 of the License, or " +
+				" (at your option) any later version.\n\n" +
+				"This program is distributed in the hope that it will be useful, " +
+				"but WITHOUT ANY WARRANTY; without even the implied warranty of " +
+				"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the " +
+				"GNU General Public License for more details.\n\n" +
+				"You should have received a copy of the GNU General Public License " +
+				"along with this program; see the file COPYING. If not, write to the " +
+				"Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.");
+		
+		return license.toString();
+		
+	}
+	
+	public void exit(){
+		this.dispose();
+	}
+
+	private class ActionOK implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			exit();
+	    }
+	}
+
+}
+/*
+  DialogMsg.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+import javax.swing.JOptionPane;
+import minicopier.i18n.Language;
+
+public class DialogMsg {
+	
+	//byte
+	private static String b;
+	
+	private static String kb; //kB
+	
+	private static String mb; //MB
+	
+	private static String gb; //GB
+	
+	private static String tb; //TB
+	
+	private static String bps, kbps, mbps, gbps, tbps;
+	
+	private static String day, hour, min, sec;
+	
+	public static void init() {
+		b = Language.get("DialogMsg.byte");
+		kb = Language.get("DialogMsg.kilobyte");
+		mb = Language.get("DialogMsg.megabyte");
+		gb = Language.get("DialogMsg.gigabyte");
+		tb = Language.get("DialogMsg.terabyte");
+		bps = Language.get("DialogMsg.byteps");
+		kbps = Language.get("DialogMsg.kilobyteps");
+		mbps = Language.get("DialogMsg.megabyteps");
+		gbps = Language.get("DialogMsg.gigabyteps");
+		tbps = Language.get("DialogMsg.terabyteps");
+		day = "d";
+		hour = "h";
+		min = "m";
+		sec = "s";
+	}
+	
+	
+	
+	
+	public static boolean displayBasketInstructions(boolean empty) {
+		boolean clearBasket = false;
+		if (empty) { //Basket is empty, we display use instructions
+			JOptionPane.showMessageDialog(MainFrame.frame,
+					Language.get("DialogMsg.displayBasketInstructions.EmptyText"),
+					Language.get("DialogMsg.displayBasketInstructions.Title"),
+					JOptionPane.INFORMATION_MESSAGE);
+		} else { //Basket not empty, possibility to clear
+			Object[] options = {
+					Language.get("DialogMsg.displayBasketInstructions.ClearButton"),
+					Language.get("DialogMsg.displayBasketInstructions.CancelButton")};
+			int n = JOptionPane.showOptionDialog(MainFrame.frame,
+			Language.get("DialogMsg.displayBasketInstructions.FullText"),
+			Language.get("DialogMsg.displayBasketInstructions.Title"),
+			JOptionPane.YES_NO_OPTION,
+			JOptionPane.QUESTION_MESSAGE,
+			null,
+			options,
+			options[1]);
+			clearBasket = (n==0);
+			
+		}
+		return clearBasket;
+	}
+
+
+	public static int confirmSkip(){
+		Object[] options = {Language.get("DialogMsg.confirmSkip.QueueButton"),
+				Language.get("DialogMsg.confirmSkip.NoButton"),
+				Language.get("DialogMsg.confirmSkip.CancelButton")};
+		int n = JOptionPane.showOptionDialog(MainFrame.frame,
+				Language.get("DialogMsg.confirmSkip.Text"),
+				Language.get("DialogMsg.confirmSkip.Title"),
+		JOptionPane.YES_NO_CANCEL_OPTION,
+		JOptionPane.QUESTION_MESSAGE,
+		null,
+		options,
+		options[2]);
+		return n;
+	}
+	
+
+	
+	
+	public static String askNewName(String oldName) {
+		return JOptionPane.showInputDialog(MainFrame.frame,
+	            Language.get("DialogMsg.askNewName.Text"),	
+	            oldName);
+	}
+	
+	public static void renameError(){
+		JOptionPane.showMessageDialog(MainFrame.frame, 
+				Language.get("DialogMsg.renameError.Text"),
+				Language.get("DialogMsg.renameError.Title"),
+				JOptionPane.ERROR_MESSAGE);
+				
+	}
+	
+	public static void errorOverwrite() {
+		JOptionPane.showMessageDialog(MainFrame.frame, 
+				Language.get("DialogMsg.errorOverwrite.Text"),
+				Language.get("DialogMsg.errorOverwrite.Title"),
+				JOptionPane.ERROR_MESSAGE);
+	}
+	
+	public static int alreadyExistsChoice(String sourcePath, long sourceSize,
+			String targetPath, long destSize){
+		Object[] options = {Language.get("DialogMsg.alreadyExistsChoice.OverwriteButton"),
+				Language.get("DialogMsg.alreadyExistsChoice.ResumeButton"),
+				Language.get("DialogMsg.alreadyExistsChoice.RenameButton"),
+				Language.get("DialogMsg.alreadyExistsChoice.CancelButton")};
+		int n = JOptionPane.showOptionDialog(MainFrame.frame,
+			Language.get("DialogMsg.alreadyExistsChoice.Text1") +
+			Language.get("DialogMsg.alreadyExistsChoice.Source") +
+			" : "+ prettySize(sourceSize)+ "\n"+
+			sourcePath +
+			Language.get("DialogMsg.alreadyExistsChoice.Target")+
+			" : "+ prettySize(destSize)+ "\n"
+			+targetPath+"\n\n"
+			+ Language.get("DialogMsg.alreadyExistsChoice.Text2"),
+			Language.get("DialogMsg.alreadyExistsChoice.Title"),
+			JOptionPane.YES_NO_CANCEL_OPTION,
+			JOptionPane.QUESTION_MESSAGE,
+			null,
+			options,
+			options[3]);
+		return n;
+	}
+	
+	
+	public static boolean transferErrorChoice(){
+		Object[] options = {Language.get("DialogMsg.transferErrorChoice.QueueButton"),
+				Language.get("DialogMsg.transferErrorChoice.AbortButton")};
+		int n = JOptionPane.showOptionDialog(MainFrame.frame,
+				Language.get("DialogMsg.transferErrorChoice.Text"),
+		Language.get("DialogMsg.transferErrorChoice.Title"),
+		JOptionPane.YES_NO_OPTION,
+		JOptionPane.ERROR_MESSAGE,
+		null,
+		options,
+		options[0]);
+		return (n==0);
+	}
+	
+	public static void displayWelcome(){
+		JOptionPane.showMessageDialog(null,
+				Language.get("DialogMsg.welcome.Text"),
+				Language.get("DialogMsg.welcome.Title"),
+				JOptionPane.INFORMATION_MESSAGE);
+	}
+	
+	public static void displayCredits() {
+		JOptionPane.showMessageDialog(MainFrame.frame, 
+				"MiniCopier - 0.2\nNovember 2007\nAdrian Courrèges\n\n"
+				+"For bug reports or suggestions,\n"
+				+"please, send an email to :\n"
+				+"a.courreges@gmail.com",
+				"Credits",
+				JOptionPane.INFORMATION_MESSAGE);
+	}
+	
+	/** Conversion of a long representing the size of a file
+	 * in bytes into a user-friendly String. 
+	 * e.g. : 71430144 -> "68.12 MB"
+	 * @param s size in bytes
+	 */
+	public static String prettySize(long s){
+		String unit = "";
+		double cut;
+		
+		if (s < 1024) {
+			return s + " " + b;
+		} else if (s < Math.pow(1024,2)){
+			cut = ((double) s) / Math.pow(1024,1);
+			unit = " " + kb;
+		} else if (s < Math.pow(1024,3)) {
+			cut = ((double) s) / Math.pow(1024,2);
+			unit = " " + mb;
+		} else if (s < Math.pow(1024,4)) {
+			cut = ((double) s) / Math.pow(1024,3);
+			unit = " " + gb;
+		} else {
+			cut = ((double) s) / Math.pow(1024,4);
+			unit = " " + tb;
+		}
+		
+		cut *= 100.0;
+		cut = Math.floor(cut+0.5);
+		cut /= 100.0;
+		
+		return cut + unit;
+	}
+	
+	public static String prettySpeed(long s){
+		String unit = "";
+		double cut;
+		
+		if (s < 1024) {
+			return s + " " + bps;
+		} else if (s < Math.pow(1024,2)){
+			cut = ((double) s) / Math.pow(1024,1);
+			unit = " " + kbps;
+		} else if (s < Math.pow(1024,3)) {
+			cut = ((double) s) / Math.pow(1024,2);
+			unit = " " + mbps;
+		} else if (s < Math.pow(1024,4)) {
+			cut = ((double) s) / Math.pow(1024,3);
+			unit = " " + gbps;
+		} else {
+			cut = ((double) s) / Math.pow(1024,4);
+			unit = " " + tbps;
+		}
+		
+		cut *= 100.0;
+		cut = Math.floor(cut+0.5);
+		cut /= 100.0;
+		
+		return cut + unit;
+	}
+	
+	public static String prettyTime(long t){
+		StringBuffer sb = new StringBuffer();
+		if (t < 60) { // x sec
+			sb.append(t).append(sec);
+			return sb.toString();
+		}
+		if (t < 3600) { // x min y sec
+			sb.append(t/60).append(min).append(" ");
+			t = t % 60;
+			if (t > 0) {
+				//if (t<10) sb.append("0");
+				sb.append(t).append(sec);
+			}
+
+			return sb.toString();
+		}
+		if (t < 86400) {// x h y min
+			sb.append(t/3600).append(hour).append(" ");
+			t = t % 3600;
+			if (t/60 > 0) {
+				//if (t<10) sb.append("0");
+				sb.append(t/60).append(min);
+			}
+
+			return sb.toString();
+		}
+		// x days y hours
+		sb.append(t/86400).append(day).append(" ");
+		t = t % 86400;
+		if (t/3600 > 0) {
+			sb.append(t/3600).append(hour);
+		}
+		
+		return sb.toString();
+	}
+	
+}
+/*
+  FailedPanel.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+
+import minicopier.i18n.Language;
+
+public class FailedPanel extends JPanel {
+
+	
+private MainFrame mainFrame;
+	
+	protected QueueJButton retry;
+	
+	protected QueueJButton removeFailed;
+	
+	protected DefaultTableModel failedModel;
+	
+	protected JTable failedList;
+	
+	public FailedPanel(MainFrame f){
+		super();
+		
+		this.mainFrame = f;
+		
+		this.retry = new QueueJButton("img/retry.gif");
+		this.retry.setToolTipText(Language.get("Tooltip.Failed.Retry"));
+		
+		
+		this.removeFailed = new QueueJButton("img/delete.gif");
+		this.removeFailed.setToolTipText(Language.get("Tooltip.Failed.Clear"));
+		
+		failedModel = mainFrame.copier.failedItems.getTableModel();
+		failedList = new JTable(failedModel);
+		//transferList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		failedList.getColumnModel().getColumn(1).setCellRenderer(new RightTableCellRenderer());
+		failedList.getColumnModel().getColumn(1).setMaxWidth(80);
+		failedList.getColumnModel().getColumn(1).setMinWidth(80);
+		
+		
+
+		this.setLayout(new BorderLayout());
+		
+
+		JScrollPane jspFailed = new JScrollPane(failedList);
+		jspFailed.setViewportView(failedList);
+		jspFailed.setPreferredSize(new Dimension(40,40));
+		//transferList.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+		//jspTransfer.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+
+			
+			//Subpanel (west) with queue management buttons
+			JPanel queueButtonsPanel = new JPanel();
+			queueButtonsPanel.setLayout(new BoxLayout(queueButtonsPanel, BoxLayout.Y_AXIS));
+			queueButtonsPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+			queueButtonsPanel.add(this.retry,Component.CENTER_ALIGNMENT);
+			queueButtonsPanel.add(this.removeFailed);
+
+			
+		this.add(queueButtonsPanel,BorderLayout.WEST);
+		this.add(jspFailed,BorderLayout.CENTER);
+		
+		
+	}
+	
+	private class RightTableCellRenderer extends DefaultTableCellRenderer {
+	    public RightTableCellRenderer() {
+	        setHorizontalAlignment(RIGHT);
+	        setVerticalAlignment(CENTER);
+	    }
+	}
+}
+/*
+  FailedQueue.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+
+import java.util.Vector;
+
+import javax.swing.table.DefaultTableModel;
+import minicopier.gui.DialogMsg;
+import minicopier.i18n.Language;
+
+public class FailedQueue {
+	
+private Copier copier;
+	
+	private Vector<FileToTransfer> failedItems;
+	private DefaultTableModel tableModel;
+
+
+	public FailedQueue(Copier c) {
+		this.copier = c;
+		this.failedItems = new Vector<FileToTransfer>();
+		
+		String[] columnsNames = {Language.get("MainFrame.TransfersPane.sourceRow"),
+				Language.get("MainFrame.TransfersPane.sizeRow"),
+				Language.get("MainFrame.TransfersPane.destinationRow")};
+		this.tableModel = new FailedModel(columnsNames,0);
+	}
+	
+	public DefaultTableModel getTableModel() {
+		return this.tableModel;
+	}
+	
+	
+	public synchronized boolean isEmpty(){
+		return this.failedItems.isEmpty();
+	}
+	
+	
+	public synchronized void addFile(FileToTransfer file){
+		this.failedItems.add(file);
+		String[] data = {file.getSourcePath(),
+				DialogMsg.prettySize(file.getSize()),
+				file.getDestinationFolderPath()
+		};
+		this.tableModel.addRow(data);
+	}
+	
+	public int[] remove(int i[]) {
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		
+		int k = 0;
+		int ind;
+		int del = 0;
+		
+		for (k=0; k<=length-1; k++){
+			ind = i[k] - del;
+			this.failedItems.removeElementAt(ind);
+			this.tableModel.removeRow(ind);
+			del++;
+		}
+		return result;
+	}
+	
+	public int[] retry(int i[]) {
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		
+		int k = 0;
+		int ind;
+		int del = 0;
+		
+		for (k=0; k<=length-1; k++){
+			ind = i[k] - del;
+			copier.addFile2Queue(this.failedItems.get(ind));
+			this.failedItems.removeElementAt(ind);
+			this.tableModel.removeRow(ind);
+			del++;
+		}
+		
+		copier.forceStart();
+		return result;
+	}
+	
+
+
+	
+	private class FailedModel extends DefaultTableModel{
+		
+		public FailedModel(Object[] s,int i){
+			super(s,i);
+		}
+		
+		public boolean isCellEditable(int row, int column) {
+			return false;
+		}
+	}
+
+}
+/*
+  FileToTransfer.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+import java.io.*;
+
+/** FileToTransfer represents a tranfer requested by the user. 
+ * It contains all the informations about the source file, and where
+ * it must be copied, according to the user.
+ */
+
+public class FileToTransfer {
+	
+	//Source file path
+	private String sourcePath;
+
+	//File's copy destination path (folder)
+	private String destinationPath;
+	
+	//Destination File Path
+	private String destinationFilePath;
+	
+	//Name of source file
+	private String name;
+	
+	//Size of source file
+	private long size;
+	
+	/** Creation of a FileToTransfer
+	 * @param _path2source system path to the source file
+	 * @param _path2destinationfolder system path to the destination folder
+	 */
+	public FileToTransfer(String _path2source, 
+			String _path2destinationfolder) {
+		
+		//Using the argument Strings directly work, but the
+		//display is not fine for Windows, so we create Files
+		//and get the path (OS-dependent).
+
+		//this.sourcePath = _path2source;
+		
+		File sourceFile = new File(_path2source);
+		
+		this.sourcePath = sourceFile.getPath();		
+		this.name = sourceFile.getName();
+		this.size = sourceFile.length();
+		
+		//this.destinationPath = _path2destinationfolder;
+		
+		
+		File destFolder = new File(_path2destinationfolder);
+		this.destinationPath = destFolder.getPath();
+		
+		this.destinationFilePath = this.destinationPath 
+		+ File.separator + this.name;
+			
+		
+	}
+	
+	public String getSourcePath() {
+		return this.sourcePath;
+	}
+	
+	public File getSourceFile() {
+		return new File(this.sourcePath);
+	}
+	
+	public String getDestinationFolderPath() {
+		return this.destinationPath;
+	}
+	
+	public File getDestinationFolder() {
+		return new File(this.getDestinationFolderPath());
+	}
+	
+	public String getDestinationFilePath() {
+		return this.destinationFilePath;
+
+	}
+	
+	public File getDestinationFile() {
+		return new File(this.getDestinationFilePath());
+	}
+	
+	public String getName() {
+		return this.name;
+	}
+	
+	public long getSize() {
+		return this.size;
+	}
+	
+	public void changeTargetName(String newName){
+		this.destinationFilePath = this.destinationPath + File.separator +
+			newName;
+	}
+
+}
+/*
+  Language.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.i18n;
+
+import java.util.*;
+
+public class Language {
+	
+	static ResourceBundle messages;
+	
+	/** If argument is "SystemLocale", we will use the system default locale. 
+	* Otherwise, we can force a language with : "fr", "en" ...
+	* @param languageLocale "SystemLocale", "fr", "en"
+	* */
+	public static void init(String languageLocale) {
+		
+		Locale locale;
+		
+		if (languageLocale.equals("SystemLocale")) {
+			locale = Locale.getDefault();
+		} else {
+			locale = new Locale(languageLocale);
+		}
+		
+		Language.messages = ResourceBundle.getBundle("minicopier.i18n.minicopier",locale);
+		
+		
+	}
+	
+	public static String get(String m) {
+		return messages.getString(m);
+	}	
+
+}
+/*
+  MainFrame.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import minicopier.i18n.Language;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.dnd.*;
+import java.awt.datatransfer.*;
+import java.io.*;
+import java.util.*;
+import java.util.List;
+
+import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+import minicopier.Configuration;
+import minicopier.Copier;
+
+
+public class MainFrame extends JFrame{
+	
+	public static MainFrame frame;
+	
+	protected Copier copier;
+	
+	private SupPanel supPanel;
+	
+	private TransfersPanel transfersPanel;
+	
+	private FailedPanel failedPanel;
+	
+	private OptionsPanel optionsPanel;
+	
+
+	public MainFrame(Copier cop)  {
+
+		super();
+		
+		frame = this;
+		
+		DialogMsg.init();
+		
+		//Look And Feel
+		
+		if (Configuration.lookAndFeel.equals("pgs")){
+			try {
+				UIManager.setLookAndFeel("com.pagosoft.plaf.PgsLookAndFeel");
+			} catch(Exception e) {}
+		}
+		
+		//Classic swing
+		else {
+			UIManager.put("swing.boldMetal", Boolean.FALSE);
+			if (Configuration.lookAndFeel.equals("native")) {
+			try {
+				   UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+				   //SwingUtilities.updateComponentTreeUI(this);
+				} catch (Exception e) {} 
+			}
+		}
+		this.copier = cop;
+		copier.setGui(this);
+		
+		this.setTitle(copier.name);
+		this.setSize(470, 400);
+		//this.setAlwaysOnTop(Configuration.alwaysOnTop);
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.setLocationRelativeTo(null);
+		this.setIconImage(imageFromJar("img/icon.jpg"));
+		//this.setUndecorated(true);
+		
+		this.supPanel = new SupPanel(this);
+		
+		this.transfersPanel = new TransfersPanel(this);
+		
+		this.failedPanel = new FailedPanel(this);
+		
+		this.optionsPanel = new OptionsPanel(this);
+		
+
+		
+		//mainPanel includes a JPanel (top) and a JTabbedPane
+		JPanel mainPanel = new JPanel();
+		mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+		mainPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+		
+		mainPanel.add(this.supPanel);
+		
+		// Linking the Panel to the controllers
+		RequestPauseResume actList = new RequestPauseResume();
+		ActionSkip skipList = new ActionSkip();
+		ActionCancel cancelList = new ActionCancel();
+		ActionCredits creditsList = new ActionCredits();
+		ActionBasket basketList = new ActionBasket();
+		
+		supPanel.basket.addMouseListener(basketList);
+		supPanel.pause.addActionListener(actList);
+		supPanel.skip.addActionListener(skipList);
+		supPanel.cancel.addActionListener(cancelList);
+		
+		DropTargetListener dropL = new Drop2Basket();
+		DropTargetListener dropFL = new Drop2Folder();
+		DropTarget dropT = new DropTarget(this.supPanel.basket, dropL);
+		DropTarget dropFT = new DropTarget(this.supPanel.paste, dropFL);
+	
+		
+		
+		
+		JTabbedPane tabbedPane = new JTabbedPane();
+		
+		//Adding the transfers list to the first tab
+		tabbedPane.addTab(Language.get("MainFrame.TransfersPane.title"), new ImageIcon(imageFromJar("img/list.png")) ,transfersPanel);
+		//Linking the Panel to the controllers
+        ActionQueueButtons queueButtonsListener = new ActionQueueButtons();
+        transfersPanel.putFirst.addActionListener(queueButtonsListener);
+        transfersPanel.putUp.addActionListener(queueButtonsListener);
+        transfersPanel.putDown.addActionListener(queueButtonsListener);
+        transfersPanel.putLast.addActionListener(queueButtonsListener);
+        transfersPanel.delete.addActionListener(queueButtonsListener);
+		
+        tabbedPane.addTab(Language.get("MainFrame.FailedPane.title"), new ImageIcon(imageFromJar("img/failed.gif")) ,failedPanel);
+        //Linking the Panel to the controllers
+        ActionFailedButtons failedButtonsListener = new ActionFailedButtons();
+        failedPanel.retry.addActionListener(failedButtonsListener);
+        failedPanel.removeFailed.addActionListener(failedButtonsListener);
+        
+        //Adding the options panel to the second tab
+		tabbedPane.addTab(Language.get("MainFrame.OptionsPane.title"),new ImageIcon(imageFromJar("img/options.png")),optionsPanel);
+		//Linking the Panel to the controllers
+		ActionCollision collisionList = new ActionCollision();
+		ActionSymbolic symbolicList = new ActionSymbolic();
+		
+		optionsPanel.collisionBox.addActionListener(collisionList);
+		optionsPanel.symbolicBox.addActionListener(symbolicList);
+		optionsPanel.credits.addActionListener(creditsList);
+        optionsPanel.speedLimitBox.addActionListener(new ActionLimitSpeed());
+        ActionSpeedChange speedLimitChange = new ActionSpeedChange();
+        optionsPanel.speedValue.addChangeListener(speedLimitChange);
+        optionsPanel.speedUnitBox.addActionListener(speedLimitChange);
+		
+		mainPanel.add(tabbedPane);
+		
+		
+		this.getContentPane().add(mainPanel);
+		this.setVisible(true);
+		
+		
+		RefreshStats refresh = new RefreshStats(500);
+		refresh.start();	
+		
+	}
+	
+	public Image imageFromJar(String path){
+		return Toolkit.getDefaultToolkit()
+		.getImage(getClass().getClassLoader().getResource(path));
+	}
+
+
+	private class RequestPauseResume implements ActionListener {
+		public void actionPerformed(ActionEvent e)
+		{
+			// to synchro (?)
+			if(copier.getPause()) { //currently paused
+				copier.unpause();
+			} else { //currently copying
+				copier.pause();
+			}
+		}
+	}
+
+	
+	private class Drop2Basket implements DropTargetListener {
+		public void drop(DropTargetDropEvent dtde) {
+			
+			
+			dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
+			
+			try {
+				
+				Transferable tr = dtde.getTransferable();
+			    DataFlavor[] flavors = tr.getTransferDataFlavors();
+			      
+			      for (int i = 0; i < flavors.length; i++) {
+			    	  
+			    	  DataFlavor fl = flavors[i];
+			    	  
+			    	  Object obj = tr.getTransferData(flavors[i]);
+			    	  
+			    	  
+			    	  //For Windows and Mac
+			    	  if (DataFlavor.javaFileListFlavor.equals(fl)) {
+							List<File> files = (List<File>)tr.getTransferData(fl);
+							
+							for (File fi : files){
+								System.out.println(fi.toURI().toString());
+								copier.addURIString2basket(fi.toURI().toString());
+							}
+							
+							dtde.dropComplete(true);
+							basketSizeSignal();
+							return;
+			    	  }
+			    	  
+			    	  //For Linux and Mac
+			    	  else if (obj instanceof String && "uri-list".equals(flavors[i].getSubType()) ){
+			            	
+			            	String allFilesPath;
+			            	allFilesPath = (String)obj;
+			            	
+			            	Scanner scan = new Scanner(allFilesPath.trim());
+			            	
+			            	while (scan.hasNextLine()) {					
+								copier.addURIString2basket(scan.nextLine());
+							}
+			            	
+			            	dtde.dropComplete(true);
+			    			basketSizeSignal();
+			    			return;
+			            	
+			            }
+			    	  
+			      }
+     
+			} catch (Exception e) {
+			      e.printStackTrace();
+			      dtde.rejectDrop();
+			    }
+	    
+		      dtde.rejectDrop();
+
+		}
+		
+		public void dragExit(DropTargetEvent e){}
+		public void dropActionChanged(DropTargetDragEvent e){}
+		public void dragOver(DropTargetDragEvent e){}
+		public void dragEnter(DropTargetDragEvent e){}
+		
+		
+	}
+
+	private class Drop2Folder implements DropTargetListener {
+		public void drop(DropTargetDropEvent dtde) {
+			
+			dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
+			
+			try {
+				
+				Transferable tr = dtde.getTransferable();
+			    DataFlavor[] flavors = tr.getTransferDataFlavors();
+			      
+			      for (int i = 0; i < flavors.length; i++) {
+			    	  
+			    	  DataFlavor fl = flavors[i];
+			    	  
+			    	  Object obj = tr.getTransferData(flavors[i]);
+			    	  
+			    	  //For Windows and Mac
+			    	  if (DataFlavor.javaFileListFlavor.equals(fl)) {
+							List<File> files = (List<File>)tr.getTransferData(fl);
+						
+							Iterator<File> ite = files.iterator();
+							
+							if (files.size() == 1) {
+								copier.paste2URIString(ite.next().toURI().toString());
+							}
+							
+							dtde.dropComplete(true);
+							basketSizeSignal();
+							
+							return;
+							
+			    	  }
+			    	  
+			    	  //For Linux and Mac
+			    	  else if (obj instanceof String && "uri-list".equals(flavors[i].getSubType()) ){
+			            	
+			            	String allFilesPath;
+			            	allFilesPath = (String)obj;
+			            	
+			            	Scanner scan = new Scanner(allFilesPath.trim());
+			            	
+			            	String destinationFolderURIString = scan.nextLine();
+
+			            	if (!scan.hasNextLine()) {
+			            		copier.paste2URIString(destinationFolderURIString);
+			            	}
+			            	
+			            	dtde.dropComplete(true);
+			    			basketSizeSignal();
+			            	
+			    			return;
+			    			
+			            }
+			    	  
+			      }
+     
+			} catch (Exception e) {
+			      e.printStackTrace();
+			      dtde.rejectDrop();
+			    }
+	    
+			dtde.rejectDrop();
+			
+		}
+		
+		public void dragExit(DropTargetEvent e){}
+		public void dropActionChanged(DropTargetDragEvent e){}
+		public void dragOver(DropTargetDragEvent e){}
+		public void dragEnter(DropTargetDragEvent e){}
+		
+	}
+	
+	public void changeCurrentFileSignal() {
+		supPanel.currentFileSource.setText(this.copier.getCurrentFileSource());
+		supPanel.currentFileDestination.setText(this.copier.getCurrentFileDestination());
+	}
+	
+	public void changePauseStateSignal(boolean b) {
+		if (b) { //Copier has been paused
+			setTitle(Language.get("MainFrame.paused")+" " + getTitle());
+			supPanel.pause.setText(Language.get("MainFrame.SupPanel.ResumeButton"));
+		} else { //Copier has been resumed
+			//setTitle(Copier.name);
+			supPanel.pause.setText(Language.get("MainFrame.SupPanel.PauseButton"));
+		}
+	}
+	
+	public void totalSizeSignal() {
+		String totalSize = DialogMsg.prettySize(copier.getQueueTotalSize());
+		supPanel.barTotalSize.setText(totalSize);
+	}
+	
+	public void currentSizeSignal() {
+		String currentSize = DialogMsg.prettySize(copier.getFileTotalSize());
+		supPanel.barCurrentSize.setText(currentSize);
+	}
+	
+	public void basketSizeSignal() {
+		supPanel.basketContent.setText(Language.get("MainFrame.SupPanel.BasketContent")+" "+copier.basketLength());
+	}
+	
+
+	
+	
+	private class RefreshStats extends Thread {
+		
+		//Delay between two displays (ms)
+		private int refreshRate;
+		
+		public RefreshStats(int l){
+			this.refreshRate = l;
+		}
+		
+		public void setRefreshRate(int l){
+			this.refreshRate = l;
+		}
+		
+		public void run() {
+			Vector<Long> historyBytes = new Vector<Long>();
+			int maxSize = 20;
+			
+			while (true) {
+				long timeInit = System.currentTimeMillis();
+				if (!copier.getPause()){
+					historyBytes.add(0,copier.readAndInitBytesCounter());
+					if (historyBytes.size() > maxSize) historyBytes.removeElementAt(historyBytes.size()-1);
+					double average = 0;
+					for (long l : historyBytes){
+						average += l;
+					}
+					try{
+					average /= (historyBytes.size()*refreshRate/1000f);
+					//System.out.println(DialogMsg.prettySize((long)average));
+					
+					String totalETA = "%";
+					String currentETA = "%";
+					String currentSpeed = "";
+					if (average > 0){
+						if (copier.getTotalBytesRemaining()>0) {
+							totalETA += " - "+DialogMsg.prettyTime((long)(copier.getTotalBytesRemaining()/average));
+							currentSpeed = " ("+DialogMsg.prettySpeed((long)average)+")";
+						}
+						if (copier.getCurrentBytesRemaining()>0)
+							currentETA += " - "+DialogMsg.prettyTime((long)(copier.getCurrentBytesRemaining()/average));
+					}
+					supPanel.mainBar.setValue(copier.getTotalPercent());
+					supPanel.fileBar.setValue(copier.getCurrentPercent());
+					supPanel.mainBar.setString(copier.getTotalPercent()+totalETA);				
+					supPanel.fileBar.setString(copier.getCurrentPercent()+currentETA);
+					setTitle(copier.getTotalPercent()+"%"+currentSpeed+" MiniCopier");
+					} catch (Exception e){e.printStackTrace();}
+				}
+				try {Thread.sleep(refreshRate-(int)(System.currentTimeMillis()-timeInit));}
+				catch (Exception e){}
+
+			}
+		}
+	}
+	
+	private class ActionQueueButtons implements ActionListener {
+		public void actionPerformed(ActionEvent e)
+		{
+			synchronized (Copier.mainQueue) {
+				int[] i = transfersPanel.transferList.getSelectedRows();
+				int[] newSelectedIndexes = {-1,-1};
+				
+				
+				if (i.length == 0) { return; } //something must be selected
+				
+				else if (e.getSource() == transfersPanel.putFirst){
+					newSelectedIndexes = Copier.mainQueue.putFirst(i);
+					
+				}
+				else if (e.getSource() == transfersPanel.putUp){
+					newSelectedIndexes = Copier.mainQueue.putUp(i);
+				}
+				else if (e.getSource() == transfersPanel.putDown){
+					newSelectedIndexes = Copier.mainQueue.putDown(i);
+				}
+				else if (e.getSource() == transfersPanel.putLast){
+					newSelectedIndexes = Copier.mainQueue.putLast(i);
+				}
+				else if (e.getSource() == transfersPanel.delete){
+					newSelectedIndexes = Copier.mainQueue.remove(i);
+				}
+				else {}
+				
+				transfersPanel.transferList.clearSelection();
+				
+				if (newSelectedIndexes[1] != -1) {
+					transfersPanel.transferList.getSelectionModel().
+					addSelectionInterval(newSelectedIndexes[0],
+							newSelectedIndexes[1]);
+				} 
+			}
+		}
+	}
+	
+	private class ActionFailedButtons implements ActionListener {
+		public void actionPerformed(ActionEvent e)
+		{
+			synchronized (Copier.failedItems) {
+				int[] i = failedPanel.failedList.getSelectedRows();				
+				
+				if (i.length == 0) { return; } //something must be selected
+				
+				else if (e.getSource() == failedPanel.retry){
+					Copier.failedItems.retry(i);
+				}
+				else if (e.getSource() == failedPanel.removeFailed){
+					Copier.failedItems.remove(i);
+				}
+				
+				transfersPanel.transferList.clearSelection();
+			}
+		}
+	}
+	
+	
+	private class ActionSkip implements ActionListener {
+		public void actionPerformed(ActionEvent e)
+		{
+			if (copier.getBusy()) {
+				copier.pause();
+				int choice = DialogMsg.confirmSkip();
+					
+				switch (choice) {
+					//Skip with put in queue
+					case 0: copier.skip(true);
+					break;
+					//Skip without put in queue
+					case 1: copier.skip(false);
+					break;
+					//Cancel skip
+					case 2 : break;
+				}
+				
+				copier.unpause();
+				
+			}
+
+		}
+		
+	}
+	
+	private class ActionCancel implements ActionListener {
+		public void actionPerformed(ActionEvent e){
+			//violent termination of the application
+			// TODO : remove the part already copied of the 
+			//        transfer (?)
+			System.exit(0);
+		}
+	}
+	
+	private class ActionCredits implements ActionListener {
+		public void actionPerformed(ActionEvent e){
+			//DialogMsg.displayCredits();
+			new Credits(MainFrame.frame);
+		}
+	}
+	
+	private class ActionBasket implements MouseListener {
+		public void mousePressed(MouseEvent e){
+			//User clicked on the basket icon
+			boolean want2Clear = DialogMsg.displayBasketInstructions(copier.basketLength()==0); 
+			if (want2Clear) {
+				copier.clearBasket();
+				basketSizeSignal();
+			}
+			
+		}
+		public void mouseReleased(MouseEvent e){}
+		public void mouseExited(MouseEvent e){}
+		public void mouseEntered(MouseEvent e){}
+		public void mouseClicked(MouseEvent e){}
+	}
+	
+	private class ActionCollision implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+	        int i = optionsPanel.collisionBox.getSelectedIndex();
+	        Configuration.collisionAction = i;
+	    }
+	}
+    
+    private class ActionLimitSpeed implements ActionListener {
+        public void actionPerformed(ActionEvent e) {
+            boolean limitEnabled = optionsPanel.speedLimitBox.isSelected();
+            optionsPanel.speedValue.setEnabled(limitEnabled);
+            optionsPanel.speedUnitBox.setEnabled(limitEnabled);
+            Configuration.limitSpeed = limitEnabled;
+            updateSpeed();
+        }
+    }
+    
+    private class ActionSpeedChange implements ChangeListener, ActionListener {
+        public void stateChanged(ChangeEvent e) {
+        	updateSpeed();
+        }
+
+		public void actionPerformed(ActionEvent e) {
+			updateSpeed();
+		}
+    }
+    
+    private void updateSpeed(){
+        Configuration.setSpeedValue((int)Math.pow(1024, optionsPanel.speedUnitBox.getSelectedIndex())*(Integer)optionsPanel.speedValue.getValue());
+        //System.out.println(Configuration.nbBytesPerS);
+    }
+	
+	private class ActionSymbolic implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+	        int i = optionsPanel.symbolicBox.getSelectedIndex();
+	        Configuration.symbolicLinkAction = i;
+	    }
+	}
+	
+
+
+}
+/*
+  MainQueue.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+
+
+import java.util.Vector;
+import javax.swing.table.*;
+
+import minicopier.gui.DialogMsg;
+
+import minicopier.i18n.Language;
+
+public class MainQueue {
+	
+	private Copier copier;
+	
+	private Vector<FileToTransfer> mainQueue;
+	
+	private DefaultTableModel tableModel;
+
+
+	public MainQueue(Copier c) {
+		this.copier = c;
+		this.mainQueue = new Vector<FileToTransfer>();
+		
+		String[] columnsNames = {Language.get("MainFrame.TransfersPane.sourceRow"),
+				Language.get("MainFrame.TransfersPane.sizeRow"),
+				Language.get("MainFrame.TransfersPane.destinationRow")};
+		this.tableModel = new TransfersModel(columnsNames,0);
+	}
+
+	public synchronized void addFile(FileToTransfer file){
+		this.mainQueue.add(file);
+		String[] data = {file.getSourcePath(),
+				DialogMsg.prettySize(file.getSize()),
+				file.getDestinationFolderPath()
+		};
+		this.tableModel.addRow(data);
+		this.copier.increaseQueueTotalSize(file.getSize());
+	}
+	
+	public DefaultTableModel getTableModel() {
+		return this.tableModel;
+	}
+	
+	/** Remove and send the first element in queue */
+	public synchronized FileToTransfer extractFirst(){
+		FileToTransfer first = this.mainQueue.firstElement();
+		this.mainQueue.remove(0);
+		this.tableModel.removeRow(0);
+		return first;
+	}
+
+	public synchronized boolean isEmpty(){
+		return this.mainQueue.isEmpty();
+	}
+	
+	public int[] putFirst(int[] i){
+		int[] result = {-1,-1};
+		int length = i.length;
+		int k = length-1;
+		int ind;
+		int del = 0;
+
+		for (k=length-1; k>=0; k--){
+			ind = i[k] + del;
+			this.mainQueue.add(0,mainQueue.elementAt(ind));
+			this.mainQueue.remove(ind+1);
+			this.tableModel.moveRow(ind,ind,0);		
+			del++;
+		}
+		result[0] = 0;
+		result[1] = length-1;
+		
+		/*
+		if (i < mainQueue.size() && i >= 0) {
+			this.mainQueue.add(0,mainQueue.elementAt(i));
+			this.tableModel.insertRow(0,(Vector)tableModel.getDataVector().elementAt(i));
+			this.mainQueue.remove(i+1);
+			this.tableModel.removeRow(i+1);
+			result = 0;
+		}
+		//System.out.println("Sortie putFirst");
+		 * 
+		 */
+		return result;
+	}
+	
+	public int[] putLast(int i[]){
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		int k = 0;
+		int ind;
+		int del = 0;
+		
+		for (k=0; k<=length-1; k++){
+			ind = i[k] - del;
+			this.mainQueue.add(mainQueue.elementAt(ind));
+			this.mainQueue.remove(ind);
+			this.tableModel.addRow((Vector)tableModel.getDataVector().elementAt(ind));
+			this.tableModel.removeRow(ind);	
+			del++;
+		}
+		
+		result[1] = tableModel.getRowCount()-1;
+		result[0] = result[1]-(length-1);
+		
+		/*
+		int result = -1;
+		if (i < mainQueue.size() && i >= 0) {
+			this.mainQueue.add(mainQueue.elementAt(i));
+			this.tableModel.addRow((Vector)tableModel.getDataVector().elementAt(i));
+			this.mainQueue.removeElementAt(i);
+			this.tableModel.removeRow(i);
+			result = (tableModel.getRowCount()-1);
+		}
+		*/
+		
+		return result;
+	}
+	
+	public int[] putUp(int[] i) {
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		int start = i[0];
+		
+		int k = length-1;
+		int ind;
+		//we usually start inserting at "start-1" except when
+		//start==0 (first element selected)
+		int toInsert = (start == 0 ? 0 : start-1);
+		int del = 0;
+		
+		for (k=length-1; k>=0; k--){
+			ind = i[k] + del;
+			this.mainQueue.add(toInsert,mainQueue.elementAt(ind));
+			this.mainQueue.remove(ind+1);
+			this.tableModel.moveRow(ind,ind,toInsert);		
+			del++;
+		}
+		
+		result[0]=toInsert;
+		result[1]=toInsert+length-1;
+		
+		/*
+		int result = -1;
+		//we do it for all, except for the first one
+		if (i < mainQueue.size() || i > 0) {
+			FileToTransfer f = mainQueue.elementAt(i-1);
+			mainQueue.setElementAt(mainQueue.elementAt(i),i-1);
+			mainQueue.setElementAt(f,i);
+			tableModel.moveRow(i,i,i-1);
+
+			result = i-1;
+		}
+		*/
+	
+		return result;
+	}
+	
+	public int[] putDown(int i[]) {
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		int last = i[length-1];
+		
+		int k = 0;
+		int ind;
+		
+		//we usually start inserting at "last+2" except when
+		//last==length-1 (last element selected)
+		int toInsert = (last == mainQueue.size()-1 ? mainQueue.size() : last+2);
+		int del =0;
+		
+		for (k=0; k<=length-1; k++){
+			ind = i[k] - del;
+			this.mainQueue.add(toInsert,mainQueue.elementAt(ind));
+			this.mainQueue.remove(ind);
+			this.tableModel.moveRow(ind,ind,toInsert-1);
+			del++;
+		}
+		
+		result[1] = toInsert-1;
+		result[0] = result[1]-(length-1);
+
+		
+		/*
+		int result = -1;
+		//don't consider the last one
+		if (i < (mainQueue.size()-1) || i >= 0) {
+			FileToTransfer f = mainQueue.elementAt(i+1);
+			mainQueue.setElementAt(mainQueue.elementAt(i),i+1);
+			mainQueue.setElementAt(f,i);
+			tableModel.moveRow(i,i,i+1);
+
+			result = i+1;
+		}*/
+		
+		return result;
+	}
+	
+	public int[] remove(int i[]) {
+		
+		int[] result = {-1,-1};
+		int length = i.length;
+		
+		int k = 0;
+		int ind;
+		int del = 0;
+		
+		for (k=0; k<=length-1; k++){
+			ind = i[k] - del;
+			this.copier.decreaseQueueTotalSize(mainQueue.elementAt(ind).getSize());
+			this.mainQueue.removeElementAt(ind);
+			this.tableModel.removeRow(ind);
+			del++;
+		}
+		
+		
+		/*
+		int result = -1;
+		if (i < mainQueue.size() && i >= 0) {
+			this.copier.decreaseQueueTotalSize(mainQueue.elementAt(i).getSize());
+			this.mainQueue.removeElementAt(i);
+			this.tableModel.removeRow(i);
+			result = i;
+		}*/
+		
+		
+		return result;
+	}
+	
+	public class TransfersModel extends DefaultTableModel{
+		
+		public TransfersModel(Object[] s,int i){
+			super(s,i);
+		}
+		
+		public boolean isCellEditable(int row, int column) {
+			return false;
+		}
+		
+	}
+	
+}
+/*
+ OptionsPanel.java / MiniCopier
+ Copyright (C) 2007-2009 Adrian Courrèges
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License as
+ published by the Free Software Foundation; either version 2 of
+ the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+package minicopier.gui;
+
+import java.awt.Dimension;
+
+import javax.swing.*;
+
+import minicopier.Configuration;
+import minicopier.i18n.Language;
+
+public class OptionsPanel extends JPanel {
+
+    private MainFrame mainFrame;
+
+    protected JComboBox collisionBox;
+
+    protected JComboBox symbolicBox;
+
+    protected JCheckBox speedLimitBox;
+    
+    protected JSpinner speedValue;
+    
+    protected JComboBox speedUnitBox;
+
+    protected JButton credits;
+
+    public OptionsPanel(MainFrame f) {
+        super();
+
+        this.mainFrame = f;
+
+        this.credits = new JButton(Language
+                .get("MainFrame.OptionsPane.creditsButton"));
+
+        String[] collisionStrings = {
+                Language.get("MainFrame.OptionsPane.collision.Ask"),
+                Language.get("MainFrame.OptionsPane.collision.Cancel"),
+                Language.get("MainFrame.OptionsPane.collision.Overwrite"),
+                Language.get("MainFrame.OptionsPane.collision.OverwriteOld"),
+                Language.get("MainFrame.OptionsPane.collision.Resume") };
+        collisionBox = new JComboBox(collisionStrings);
+        // DefaultListCellRenderer rightRenderer = new
+        // DefaultListCellRenderer();
+        // rightRenderer.setHorizontalAlignment(DefaultListCellRenderer.RIGHT);
+        // collisionBox.setRenderer(rightRenderer);
+        collisionBox.setSelectedIndex(Configuration.collisionAction);
+        
+        this.speedLimitBox = new JCheckBox(Language.get("MainFrame.OptionsPane.throughput.Sentence"));
+        this.speedLimitBox.setSelected(false);
+        SpinnerModel speedModel = new SpinnerNumberModel(1,1,9999,1);
+        this.speedValue = new JSpinner(speedModel);
+        this.speedValue.setEnabled(false);
+        String[] unitValues = {
+        		Language.get("DialogMsg.byteps"),
+				Language.get("DialogMsg.kilobyteps"),
+				Language.get("DialogMsg.megabyteps"),
+				Language.get("DialogMsg.gigabyteps")};
+        speedUnitBox = new JComboBox(unitValues);
+        speedUnitBox.setSelectedIndex(2);
+        speedUnitBox.setEnabled(false);
+
+        String[] symbolicStrings = {
+                Language.get("MainFrame.OptionsPane.symLinks.Follow"),
+                Language.get("MainFrame.OptionsPane.symLinks.Ignore") };
+        symbolicBox = new JComboBox(symbolicStrings);
+
+        symbolicBox.setSelectedIndex(Configuration.symbolicLinkAction);
+
+        this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+
+        // Collision option
+        JPanel collisionPanel = new JPanel();
+        collisionPanel.setLayout(new BoxLayout(collisionPanel, BoxLayout.X_AXIS));
+        collisionPanel.add(new JLabel(Language.get("MainFrame.OptionsPane.collision.Sentence")));
+
+        collisionPanel.add(Box.createHorizontalGlue());
+        collisionBox.setMaximumSize(collisionBox.getPreferredSize());
+        collisionPanel.add(collisionBox);
+        collisionPanel.setBorder(BorderFactory.createTitledBorder(Language.get("MainFrame.OptionsPane.collision.Title")));
+
+        // Speed option
+        JPanel speedPanel = new JPanel();
+        speedPanel.setLayout(new BoxLayout(speedPanel, BoxLayout.X_AXIS));
+
+        
+        speedPanel.add(this.speedLimitBox);
+        speedLimitBox.setMaximumSize(speedLimitBox.getPreferredSize());
+        speedPanel.add(Box.createHorizontalGlue());
+        speedPanel.add(this.speedValue);
+        speedValue.setMaximumSize(new Dimension(
+        		speedValue.getMinimumSize().width,
+        		speedUnitBox.getMinimumSize().height)
+        );
+        speedPanel.add(Box.createRigidArea(new Dimension(5,5)));
+        speedPanel.add(speedUnitBox);
+        speedUnitBox.setMaximumSize(speedUnitBox.getMinimumSize());
+        speedPanel.setBorder(BorderFactory.createTitledBorder(Language.get("MainFrame.OptionsPane.throughput.Title")));
+        
+
+
+        
+        // Symbolic link option
+        JPanel symbolicPanel = new JPanel();
+        symbolicPanel.setLayout(new BoxLayout(symbolicPanel, BoxLayout.X_AXIS));
+        symbolicPanel.add(new JLabel(Language
+                .get("MainFrame.OptionsPane.symLinks.Sentence")));
+        symbolicPanel.add(Box.createHorizontalGlue());
+
+        symbolicBox.setMaximumSize(symbolicBox.getPreferredSize());
+        // symbolicBox.setMinimumSize(collisionBox.getPreferredSize());
+
+        symbolicPanel.add(symbolicBox);
+        symbolicPanel.setBorder(BorderFactory.createTitledBorder(Language
+                .get("MainFrame.OptionsPane.symLinks.Title")));
+
+        JPanel optionsBottom = new JPanel();
+        optionsBottom.setLayout(new BoxLayout(optionsBottom, BoxLayout.X_AXIS));
+        optionsBottom.add(this.credits);
+        optionsBottom.add(Box.createHorizontalGlue());
+
+        this.add(collisionPanel);
+        this.add(speedPanel);
+        this.add(symbolicPanel);
+        this.add(Box.createVerticalGlue());
+        this.add(optionsBottom);
+    }
+
+}
+/*
+  QueueJButton.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import java.awt.Dimension;
+
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+
+public class QueueJButton extends JButton{
+
+	public QueueJButton(String imagePath) {
+		super();
+		this.setIcon(new ImageIcon(MainFrame.frame.imageFromJar(imagePath)));
+		this.setMaximumSize(new Dimension(28,28));
+		this.setPreferredSize(new Dimension(28,28));
+	}
+
+}
+/*
+  SupPanel.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import java.awt.Component;
+
+import javax.swing.*;
+
+import minicopier.i18n.Language;
+
+
+//Panel with DnD pictures + transfer stats
+public class SupPanel extends JPanel {
+	
+	private MainFrame mainFrame;
+	
+	protected JButton pause;
+
+	protected JButton skip;
+	
+	protected JButton cancel;
+	
+	protected JLabel basket;
+	
+	protected JLabel basketContent;
+	
+	protected JLabel paste;
+	
+	protected JLabel barTotalSize;
+	
+	protected JLabel barCurrentSize;	
+	
+	protected JLabel currentFileSource;
+	
+	protected JLabel currentFileDestination;
+	
+	protected JProgressBar mainBar;
+	
+	protected JProgressBar fileBar;
+	
+	public SupPanel(MainFrame f) {
+		
+		super();
+		
+		this.mainFrame = f;
+		
+		this.pause = new JButton(Language.get("MainFrame.SupPanel.PauseButton"));
+		this.skip = new JButton(Language.get("MainFrame.SupPanel.SkipButton"));
+		this.cancel = new JButton(Language.get("MainFrame.SupPanel.CancelButton"));
+		this.basket = new JLabel("");
+		this.basket.setIcon(new ImageIcon(mainFrame.imageFromJar("img/basket.png")));
+		this.basketContent = new JLabel(Language.get("MainFrame.SupPanel.BasketContent")+" 0");
+		this.paste = new JLabel("");
+		this.paste.setIcon(new ImageIcon(mainFrame.imageFromJar("img/paste.png")));
+		this.barTotalSize = new JLabel("");
+		this.barCurrentSize = new JLabel("");
+		this.currentFileSource = new JLabel(mainFrame.copier.getCurrentFileSource());
+		this.currentFileDestination = new JLabel(mainFrame.copier.getCurrentFileDestination());
+		
+		//Tooltips
+		this.basket.setToolTipText(Language.get("Tooltip.Basket"));
+		this.paste.setToolTipText(Language.get("Tooltip.Paste"));
+		
+		this.mainBar = new JProgressBar(0, 100);
+        mainBar.setValue(0);
+        mainBar.setStringPainted(true);
+        
+        this.fileBar = new JProgressBar(0, 100);
+        fileBar.setValue(0);
+        fileBar.setStringPainted(true);
+
+		
+        this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+		this.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+		JPanel firstPanel = new JPanel();
+		
+		firstPanel.setLayout(new BoxLayout(firstPanel, BoxLayout.X_AXIS));
+		firstPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+		
+			Box basketPanel = Box.createVerticalBox();
+			
+			//basketPanel.setLayout(new BoxLayout(basketPanel,BoxLayout.Y_AXIS));
+			basketPanel.add(basket);
+			basketPanel.add(basketContent,Component.RIGHT_ALIGNMENT);
+			
+			basketPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+		
+		firstPanel.add(basketPanel,Component.RIGHT_ALIGNMENT);
+		
+			//Sub JPanel with stats
+			JPanel subJPanel1 = new JPanel();
+			subJPanel1.setLayout(new BoxLayout(subJPanel1, BoxLayout.Y_AXIS));
+				
+				//Above Total progress bar
+				JPanel aboveTotalBar = new JPanel();
+				aboveTotalBar.setLayout(new BoxLayout(aboveTotalBar,BoxLayout.X_AXIS));
+				aboveTotalBar.add(new JLabel(Language.get("MainFrame.SupPanel.TotalBarTitle")));
+				aboveTotalBar.add(Box.createHorizontalGlue());
+				aboveTotalBar.add(this.barTotalSize);
+				
+			subJPanel1.add(aboveTotalBar);
+			subJPanel1.add(mainBar);
+			
+				//Above Current progress bar
+				JPanel aboveCurrentBar = new JPanel();
+				aboveCurrentBar.setLayout(new BoxLayout(aboveCurrentBar,BoxLayout.X_AXIS));
+				aboveCurrentBar.add(new JLabel(Language.get("MainFrame.SupPanel.CurrentFileBarTitle")));
+				aboveCurrentBar.add(Box.createHorizontalGlue());
+				aboveCurrentBar.add(this.barCurrentSize);
+				
+				
+			subJPanel1.add(aboveCurrentBar);
+			subJPanel1.add(fileBar);
+		
+		firstPanel.add(subJPanel1);
+		firstPanel.add(paste);
+		this.add(firstPanel);
+		
+		//Panel with control buttons
+		JPanel secondPanel = new JPanel();
+		secondPanel.setLayout(new BoxLayout(secondPanel, BoxLayout.X_AXIS));
+		//secondPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+		
+		secondPanel.add(pause);
+		secondPanel.add(skip);
+		secondPanel.add(cancel);
+		
+		this.add(secondPanel);
+		
+		//Panel of files strings
+		JPanel stringPanel = new JPanel();
+		stringPanel.setLayout(new BoxLayout(stringPanel, BoxLayout.X_AXIS));
+		
+		
+			//Subpanel "From:" and "To:"
+			JPanel ftPanel = new JPanel();
+			ftPanel.setLayout(new BoxLayout(ftPanel, BoxLayout.Y_AXIS));
+			ftPanel.add(new JLabel(Language.get("MainFrame.SupPanel.SourcePath")+" "));
+			ftPanel.add(new JLabel(Language.get("MainFrame.SupPanel.DestinationPath")+" "));
+			
+			
+			//Subpanel with "source path" and "destination file"
+			JPanel sourceDestPanel = new JPanel();
+			sourceDestPanel.setLayout(new BoxLayout(sourceDestPanel, BoxLayout.Y_AXIS));
+			sourceDestPanel.add(this.currentFileSource);
+			sourceDestPanel.add(this.currentFileDestination);
+			
+		stringPanel.add(ftPanel);
+		stringPanel.add(sourceDestPanel);
+		stringPanel.add(Box.createVerticalStrut(15));
+		this.add(stringPanel);
+	}
+
+
+}
+/*
+  ThroughputLimitInputStream.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+/*
+ * This file is adapted from the one of muCommander, http://www.mucommander.com
+ * Copyright (C) 2002-2008 Maxence Bernard
+ */
+
+package minicopier;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+/**
+ * ThroughputLimitInputStream extends InputStream to provide control over the transfer speed and limit it to a specified
+ * number of bytes per second. 
+ * Whenever the bytes per second quota has been reached, the read and skip methods will lock and won't return
+ * until either:
+ * <ul>a new second commences, bringing the bytes read count back to zero for the new second
+ * <li>{@link #setThroughputLimit(long)} is called with a more permissive bytes per second value (different from 0),
+ * yielding to more bytes available for the current second.
+ *
+ * <p>Setting the throughput limit to 0 effectively blocks all read and skip calls indefinitely.
+ * Any calls to the read or skip methods will lock, the only way to remove this lock being to call the
+ * {@link #setThroughputLimit(long)} method with a value different from 0 from another thread.
+ *
+ * <p>Setting the throughput limit to -1 or any other negative values will disable any limit and make
+ * this ThroughputLimitInputStream behave just like a normal InputStream.
+ *
+ * <p>Finally, the {@link #setUnderlyingInputStream(java.io.InputStream)} method allows to use the
+ * same ThroughputLimitInputStream instance for multiple InputStream instances, keeping the bytes count for the
+ * current second intact and thus the throughput limit stable. This does not hold true if a new ThroughputLimitInputStream
+ * is created for each InputStream, the bytes count for the current second starting at 0.  
+ *
+ * @author Maxence Bernard
+ */
+public class ThroughputLimitInputStream extends InputStream {
+
+    /** Underlying InputStream */
+    private InputStream in;
+
+
+    /** Holds the current second, allowing to detect when a new second commences */
+    private long currentSecond;
+
+    /** Number of bytes that have been read or skipped this second */
+    private long nbBytesReadThisSecond;
+
+
+    /**
+     * Creates a new ThroughputLimitInputStream with no initial throughput limit (-1 value).
+     *
+     * @param in underlying stream that is used to read data from
+     */
+    public ThroughputLimitInputStream(InputStream in) {
+        this.in = in;
+    }
+
+    /**
+     * Creates a new ThroughputLimitInputStream with an initial throughput limit.
+     *
+     * @param in underlying stream that is used to read data from
+     * @param bytesPerSecond initial throughput limit in bytes per second
+     * @see #setThroughputLimit(long)
+     */
+    public ThroughputLimitInputStream(InputStream in, long bytesPerSecond) {
+        this.in = in;
+    }
+
+
+    /**
+     * Changes the underlying InputStream which data is read from, keeping the bytes count for the current second intact.
+     *
+     * <p>Note: the existing underlying InputStream will not be closed, the {@link #close()} method must be called prior
+     * to calling this method.
+     *
+     * @param in the new InputStream to read data from
+     */
+    public void setUnderlyingInputStream(InputStream in) {
+        this.in = in;
+    }
+
+
+    /**
+     * Returns the number of bytes that can be read (or skipped) without exceeding the current throughput limit.
+     * This method blocks until at least 1 byte is available. In other words the method always returns
+     * strictly positive values.
+     *
+     * <p>If the current throughput limit is negative (no limit), this method returns immediately Integer.MAX_VALUE.
+     * <p>If the byte quota for the current second has been exceeded, this method locks and returns as soon as a new second
+     * has started (i.e. bytes are available), or the {@link #setThroughputLimit(long)} with a more permissive value
+     * has been called.
+     * <p>If the current throughput limit is 0, it will lock undefinitely, until {@link #setThroughputLimit(long)} has
+     * been called from another thread with a value different from 0.
+     *
+     * @return the number of bytes available for reading without exceeding the current throughput limit
+     */
+    private int getNbAllowedBytes() {
+
+        // Update limit counter and retrieve number of milliseconds until next second
+        long msUntilNextSecond = updateLimitCounter();
+
+        long allowedBytes;
+        
+        long bpsLimit = Configuration.getSpeedValue();
+
+        synchronized(this) {
+            // Loop while throughput limit has been exceeded
+            while((allowedBytes=bpsLimit- nbBytesReadThisSecond)<=0) {
+                // Throughput limit was removed, return max int value
+                if(bpsLimit<0)
+                    return Integer.MAX_VALUE;
+
+                try {
+                    // If limit is 0, wait indefinitely for a call to notify() from setThroughputLimit()
+                    if(bpsLimit==0)
+                        wait();
+                    // Wait until the current second is over for more bytes to be available,
+                    // or until a call to notify() is made from setThroughputLimit()
+                    else {
+                        wait(msUntilNextSecond);
+                    }
+                }
+                catch(InterruptedException e) {
+                    // No problem in this unlikely event, loop one more time and wait some more
+                }
+
+                // Update limit counter and retrieve number of milliseconds until next second
+                msUntilNextSecond = updateLimitCounter();
+            }
+        }
+
+        return (int)allowedBytes;
+    }
+
+
+    /**
+     * Checks if the current second has changed. If that's the case, updates the current second value and resets the
+     * number of bytes read this second. Returns the number of milliseconds until a new second starts.
+     */
+    private long updateLimitCounter() {
+        long now = System.currentTimeMillis();
+        long nowSecond = now/1000;
+
+        // Current second has changed
+        if(this.currentSecond!=nowSecond) {
+            this.currentSecond = nowSecond;
+            this.nbBytesReadThisSecond = 0;
+        }
+
+        return 1000-(now%1000);
+    }
+
+
+    /**
+     * Increases the number of bytes read this second to the given number.
+     *
+     * @param nbRead number of bytes that have been read or skipped from the underlying stream.
+     */
+    private void addToLimitCounter(long nbRead) {
+        updateLimitCounter();
+
+        this.nbBytesReadThisSecond += nbRead;
+    }
+
+
+    ////////////////////////////////
+    // InputStream implementation //
+    ////////////////////////////////
+
+    public int read() throws IOException {
+        
+        long bpsLimit = Configuration.getSpeedValue();
+        
+        // Wait until at least 1 byte is available if a limit is set
+        if(bpsLimit>=0)
+            getNbAllowedBytes();
+
+        // Read the byte from the underlying stream
+        int i = in.read();
+
+        // Increase read counter by 1
+        if(i>0)
+            addToLimitCounter(1);
+
+        return i;
+    }
+
+    public int read(byte[] bytes) throws IOException {
+        return this.read(bytes, 0, bytes.length);
+    }
+
+    public int read(byte[] bytes, int off, int len) throws IOException {
+        int nbRead;
+        
+        long bpsLimit = Configuration.getSpeedValue();
+
+        // Wait until at least 1 byte is available if a limit is set and try to read as many bytes are available
+        // without exceeding the throughput limit or the number specified
+        if(bpsLimit>=0 && Configuration.limitSpeed)
+            nbRead = in.read(bytes, off, Math.min(getNbAllowedBytes(),len));
+        else
+            nbRead = in.read(bytes, off, len);
+
+        // Increase read counter by the number of bytes that have actually been read by the underlying stream
+        if(nbRead>0)
+            addToLimitCounter(nbRead);
+
+        return nbRead;
+    }
+
+    public long skip(long l) throws IOException {
+        
+        long bpsLimit = Configuration.getSpeedValue();
+        
+        long nbSkipped = in.skip(bpsLimit>=0?Math.min(getNbAllowedBytes(),l):l);
+
+        // Increase read counter by the number of bytes that have actually been skipped by the underlying stream
+        if(nbSkipped>0)
+            addToLimitCounter(nbSkipped);
+
+        return nbSkipped;
+    }
+
+    public int available() throws IOException {
+        return in.available();
+    }
+
+    public void close() throws IOException {
+        in.close();
+    }
+
+    public synchronized void mark(int i) {
+        in.mark(i);
+    }
+
+    public synchronized void reset() throws IOException {
+        in.reset();
+    }            
+
+    public boolean markSupported() {
+        return in.markSupported();
+    }
+}/*
+  TransferTask.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier;
+import java.io.*;
+
+
+public class TransferTask extends Thread{
+
+	private Copier copier;
+	
+	private File source;
+	
+	private File destination;
+	
+	private File destinationFolder;
+	
+	private Boolean append;
+	
+	private Boolean paused;
+	
+	private Boolean cancel;
+	
+	private long totalSize;
+	
+	private long currentSize;
+	
+	boolean completed;
+	
+	boolean putInQueue;
+	
+
+	
+	public TransferTask(Copier c, FileToTransfer file, boolean _app){
+		this.copier = c;
+		this.source=file.getSourceFile();
+		this.destination=file.getDestinationFile();
+		this.destinationFolder=file.getDestinationFolder();
+		this.append=_app;
+		this.paused = false;
+		this.cancel = false;
+		this.totalSize = file.getSize();
+		this.currentSize = 0;
+		this.completed = false;
+		this.putInQueue = false;
+	}
+	
+	
+	public boolean getCompleted(){
+		return this.completed;
+	}
+	
+	
+	public void setPause() {
+		this.paused = true;
+	}
+	
+	public void unpause() {
+		synchronized(this) {
+		this.paused = false;
+		this.notifyAll();
+		}
+	}
+	
+	public void setCancelAndQueue(boolean _putInQueue){
+		this.cancel = true;
+		this.putInQueue = _putInQueue;
+	}
+	
+	public boolean getPutInQueue(){
+		return this.putInQueue;
+	}
+	
+	public boolean getCancel() {
+		return this.cancel;
+	}
+	
+	public void run() {
+		// Streams declarations
+		ThroughputLimitInputStream sourceFile = null;
+        java.io.FileOutputStream destinationFile = null;
+        
+        // Read by segment of 0.5Mo 
+        int bufferSize = 512*1024;
+        
+        this.copier.setFileTotalSize(this.totalSize);
+        this.copier.setFileCurrentSize(0);
+        
+        try {
+        		//creation of directories (if needed)
+        		this.destinationFolder.mkdirs();
+                // Creation of file (nothing done if already present)
+                this.destination.createNewFile();
+                
+                // Opening streams
+                sourceFile = new ThroughputLimitInputStream(new java.io.FileInputStream(source));
+                destinationFile = new java.io.FileOutputStream(destination,this.append);
+
+                if (append) {
+                // Skip already copied bytes
+	                long already_copied = destination.length();
+	                long jump_source;
+	                jump_source = sourceFile.skip(already_copied);
+	                
+	                //Might be useless (?)
+	                //risk of skipping too much (javadoc)
+	                while (jump_source != already_copied) {
+	                	sourceFile = new ThroughputLimitInputStream(new java.io.FileInputStream(source));
+	                	jump_source = sourceFile.skip(already_copied);
+	                }
+	                
+	                this.copier.increaseFileCurrentSize(jump_source);
+                }
+
+                // Read by segment of 0.5Mo 
+                byte buffer[]=new byte[bufferSize];
+                int nbReads;
+                
+                while( (nbReads = sourceFile.read(buffer)) != -1 ) {
+                        destinationFile.write(buffer, 0, nbReads);
+                        
+                        this.copier.increaseFileCurrentSize(nbReads);
+                        
+                        if (this.paused) {
+                        	synchronized(this) {
+	                        	try{
+	                        		this.copier.setPause(true);
+	                        		System.out.println("COPY PAUSED");
+	                        		wait();	
+	                        		this.copier.setPause(false);
+	                        		System.out.println("COPY RESUMED");
+	                        	}
+	                        	catch (InterruptedException e) {}
+                        	}
+                        	
+                        }
+                        
+                        if (this.cancel) { //Skip or cancel requested by user
+                        	return;
+                        }
+                        
+                } 
+                
+                // Copy successful
+                this.completed = true;
+                //System.out.println("Transfer completed !");
+               
+        } catch( java.io.FileNotFoundException f ) {
+                
+        } catch( java.io.IOException e ) {
+        	System.out.println("IO Exception !");
+                
+        } finally {
+                // Whatever happens, closing streams
+                try {
+                        sourceFile.close();
+                } catch(Exception e) { 
+                	System.out.println("Error closing source file !");
+                }
+                try {
+                        destinationFile.close();
+                } catch(Exception e) {
+                	System.out.println("Error closing destination file !");
+                }
+        } 
+		
+	}
+	
+}
+/*
+  TransfersPanel.java / MiniCopier
+  Copyright (C) 2007-2009 Adrian Courrèges
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of
+  the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+package minicopier.gui;
+
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+
+import javax.swing.*;
+import javax.swing.table.*;
+
+import minicopier.i18n.Language;
+
+//Panel with transfer list
+public class TransfersPanel extends JPanel {
+	
+	private MainFrame mainFrame;
+	
+	protected QueueJButton putFirst;
+	
+	protected QueueJButton putUp;
+	
+	protected QueueJButton putDown;
+	
+	protected QueueJButton putLast;
+	
+	protected QueueJButton delete;
+	
+	protected DefaultTableModel transferModel;
+	
+	protected JTable transferList;
+	
+	public TransfersPanel(MainFrame f){
+		super();
+		
+		this.mainFrame = f;
+		
+		this.putFirst = new QueueJButton("img/first.gif");
+		this.putFirst.setToolTipText(Language.get("Tooltip.Transfers.First"));
+        
+        this.putUp = new QueueJButton("img/up.gif");
+        this.putUp.setToolTipText(Language.get("Tooltip.Transfers.Up"));
+        this.putDown = new QueueJButton("img/down.gif");
+        this.putDown.setToolTipText(Language.get("Tooltip.Transfers.Down"));
+        this.putLast = new QueueJButton("img/last.gif");
+        this.putLast.setToolTipText(Language.get("Tooltip.Transfers.Last"));
+        this.delete = new QueueJButton("img/delete.gif");
+        this.delete.setToolTipText(Language.get("Tooltip.Transfers.Cancel"));
+		
+		transferModel = mainFrame.copier.mainQueue.getTableModel();
+		transferList = new JTable(transferModel);
+		//transferList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		transferList.getColumnModel().getColumn(1).setCellRenderer(new RightTableCellRenderer());
+		transferList.getColumnModel().getColumn(1).setMaxWidth(80);
+		transferList.getColumnModel().getColumn(1).setMinWidth(80);
+		
+		
+
+		this.setLayout(new BorderLayout());
+		
+
+		JScrollPane jspTransfer = new JScrollPane(transferList);
+		jspTransfer.setViewportView(transferList);
+		jspTransfer.setPreferredSize(new Dimension(40,40));
+		//transferList.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+		//jspTransfer.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+
+			
+			//Subpanel (west) with queue management buttons
+			JPanel queueButtonsPanel = new JPanel();
+			queueButtonsPanel.setLayout(new BoxLayout(queueButtonsPanel, BoxLayout.Y_AXIS));
+			queueButtonsPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+			queueButtonsPanel.add(this.putFirst,Component.CENTER_ALIGNMENT);
+			queueButtonsPanel.add(this.putUp);
+			queueButtonsPanel.add(this.putDown);
+			queueButtonsPanel.add(this.putLast);
+			queueButtonsPanel.add(this.delete);
+
+			
+		this.add(queueButtonsPanel,BorderLayout.WEST);
+		this.add(jspTransfer,BorderLayout.CENTER);
+		
+		
+	}
+
+	public class RightTableCellRenderer extends DefaultTableCellRenderer {
+	    public RightTableCellRenderer() {
+	        setHorizontalAlignment(RIGHT);
+	        setVerticalAlignment(CENTER);
+	    }
+	}
+	
+
+
+}

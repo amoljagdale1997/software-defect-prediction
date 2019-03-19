@@ -1,0 +1,21 @@
+<html>
+<title>software defect prediction tool
+</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+		
+
+<body >
+<form action ="http://127.0.0.1:5000/execute" method="POST">
+	<p>execute ?</p>
+	<input type="hidden" name ="foldername" value={{message2}}>
+	<ul>
+		{%for file in message%}
+		<li>{{file}}</li>
+		{%endfor%}
+	</ul>
+	<input type="submit" name="execute" value="execute" ">
+</form>
+</body>
+</html>

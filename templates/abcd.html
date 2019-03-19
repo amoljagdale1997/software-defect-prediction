@@ -1,0 +1,28 @@
+<html>
+<title>software defect prediction tool
+</title>
+<head>
+	
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='style.css')}}">
+	
+</head>
+
+<body >
+	<center>
+	<div class="c"><h1>Software defect prediction tool</h1>	
+	</div>
+	
+		<form  class ="a" action ="http://127.0.0.1:5000/kaam" method ="post" enctype=multipart/form-data>
+			<p>Upload folder of Application to be tested</p>
+					<p>Name : <input type ="text" name ="foldername"></p>
+					
+					<input type="file"   name="file[]" multiple class="button1" >
+				
+			 <button type="submit" class="button1" name="Upload" value="upload" >Upload files</button>
+		</form>
+	</center>
+		
+	
+
+</body>
+</html>
